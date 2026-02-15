@@ -1,0 +1,2 @@
+Archived EVM artifacts moved to /archive/evm on 2026-02-13 by automation.
+Files moved: contracts, script, test, foundry.toml, oracle-engine

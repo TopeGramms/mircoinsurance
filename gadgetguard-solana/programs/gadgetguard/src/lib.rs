@@ -21,6 +21,11 @@ pub mod gadgetguard {
         quorum: u8,
         approval_ratio: u16,
     ) -> Result<()> {
+        require!(
+            max_claim_pct <= 10000 && vote_window_secs > 0 && quorum > 0 && approval_ratio <= 10000,
+            ErrorCode::InvalidGovernanceConfig
+        );
+
         let pool = &mut ctx.accounts.pool;
         
         pool.admin = ctx.accounts.admin.key();
@@ -105,6 +110,7 @@ pub mod gadgetguard {
         
         require!(member.active, ErrorCode::MemberNotActive);
         require!(member.deposited_amount >= amount, ErrorCode::InsufficientMemberDeposit);
+        require!(ctx.accounts.pool_vault.amount >= amount, ErrorCode::InsufficientPoolFunds);
         
         // For MVP: simple withdrawal, no cooldown check or pending claim check
         // (In production, you'd check for pending claims)
@@ -226,6 +232,7 @@ pub mod gadgetguard {
         let pool = &mut ctx.accounts.pool;
         
         require!(claim.status == ClaimStatus::Pending, ErrorCode::ClaimNotPending);
+        require!(ctx.accounts.claimant.key() == claim.claimant, ErrorCode::InvalidClaimant);
         
         // Check vote window has expired
         let clock = Clock::get()?;
@@ -246,6 +253,10 @@ pub mod gadgetguard {
         if approval >= pool.approval_ratio {
             // Claim approved - pay out
             claim.status = ClaimStatus::Approved;
+            require!(
+                ctx.accounts.pool_vault.amount >= claim.requested_amount,
+                ErrorCode::InsufficientPoolFunds
+            );
             
             // Transfer tokens to claimant
             let seeds = &[
@@ -312,7 +323,11 @@ pub struct JoinPool<'info> {
     )]
     pub member: Account<'info, Member>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     #[account(mut)]
@@ -330,7 +345,11 @@ pub struct Deposit<'info> {
     )]
     pub member: Account<'info, Member>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     #[account(
@@ -369,7 +388,11 @@ pub struct Withdraw<'info> {
     )]
     pub member: Account<'info, Member>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     #[account(
@@ -416,7 +439,11 @@ pub struct SubmitClaim<'info> {
     )]
     pub member: Account<'info, Member>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     #[account(
@@ -453,6 +480,10 @@ pub struct VoteClaim<'info> {
     )]
     pub member: Account<'info, Member>,
     
+    #[account(
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     pub user: Signer<'info>,
@@ -467,7 +498,11 @@ pub struct FinalizeClaim<'info> {
     )]
     pub claim: Account<'info, Claim>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pool"],
+        bump = pool.bump
+    )]
     pub pool: Account<'info, Pool>,
     
     #[account(
@@ -492,6 +527,9 @@ pub struct FinalizeClaim<'info> {
     pub pool_authority: UncheckedAccount<'info>,
     
     /// CHECK: Claimant address from claim account
+    #[account(
+        constraint = claimant.key() == claim.claimant @ ErrorCode::InvalidClaimant
+    )]
     pub claimant: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,

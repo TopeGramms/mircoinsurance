@@ -55,7 +55,6 @@ contract DeployScript is Script {
         // 5. Wire up permissions
         // CoverageToken: transfer ownership to PremiumPool (for minting) and ClaimsManager (for burning)?
         // Actually CoverageToken is Ownable. We need to give mint/burn rights.
-        // Current implementation is Ownable, so only owner can mint/burn.
         // We should probably use AccessControl for better granularity, but for MVP Ownable is fine.
         // We can transfer ownership to a "Controller" or just keep it simple.
         // Problem: PremiumPool needs to mint, ClaimsManager needs to burn.
@@ -67,9 +66,6 @@ contract DeployScript is Script {
         
         // Refactoring CoverageToken to AccessControl is better.
         // But for now, I will stick to the plan and maybe update CoverageToken.
-        
-        // Let's update CoverageToken to AccessControl in the next step if needed.
-        // For now, I'll assume I'll fix it.
         
         // PayoutRouter needs to be set in PremiumPool?
         // PremiumPool.withdrawForClaim is onlyOwner. So PayoutRouter must be owner of PremiumPool?

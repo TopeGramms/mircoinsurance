@@ -44,4 +44,10 @@ pub enum ErrorCode {
     
     #[msg("Maximum voters reached for this claim")]
     MaxVotersReached,
+
+    #[msg("Invalid governance configuration")]
+    InvalidGovernanceConfig,
+
+    #[msg("Claimant account does not match claim")]
+    InvalidClaimant,
 }
