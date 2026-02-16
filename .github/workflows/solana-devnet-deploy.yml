@@ -1,0 +1,140 @@
+name: solana-devnet-deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOLANA_URL: https://api.devnet.solana.com
+      PROGRAM_KEYPAIR_PATH: gadgetguard-solana/target/deploy/gadgetguard-keypair.json
+      ANCHOR_WALLET: /home/runner/.config/solana/id.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Solana CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+
+      - name: Install Anchor (AVM)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          avm install latest
+          avm use latest
+          anchor --version
+
+      - name: Write keypairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.config/solana"
+          cat > "$HOME/.config/solana/id.json" <<'EOF'
+          ${{ secrets.DEPLOYER_KEYPAIR_JSON }}
+          EOF
+          chmod 600 "$HOME/.config/solana/id.json"
+
+          mkdir -p "$(dirname "${PROGRAM_KEYPAIR_PATH}")"
+          cat > "${PROGRAM_KEYPAIR_PATH}" <<'EOF'
+          ${{ secrets.PROGRAM_KEYPAIR_JSON }}
+          EOF
+          chmod 600 "${PROGRAM_KEYPAIR_PATH}"
+
+      - name: Configure Solana
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana config set --url "$SOLANA_URL"
+          solana config set --keypair "$ANCHOR_WALLET"
+          solana config get
+
+      - name: Sync program ID from keypair
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          PROGRAM_ID=$(solana-keygen pubkey "$PROGRAM_KEYPAIR_PATH")
+          export PROGRAM_ID
+          echo "Program ID: $PROGRAM_ID"
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import os
+
+          program_id = os.environ["PROGRAM_ID"]
+
+          anchor_toml = pathlib.Path("gadgetguard-solana/Anchor.toml")
+          content = anchor_toml.read_text(encoding="utf-8")
+          content = re.sub(r'(?m)^gadgetguard\s*=\s*"[^"]+"', f'gadgetguard = "{program_id}"', content)
+          anchor_toml.write_text(content, encoding="utf-8")
+
+          lib_rs = pathlib.Path("gadgetguard-solana/programs/gadgetguard/src/lib.rs")
+          lib_content = lib_rs.read_text(encoding="utf-8")
+          lib_content = re.sub(r'declare_id!\("[^"]+"\);', f'declare_id!("{program_id}");', lib_content)
+          lib_rs.write_text(lib_content, encoding="utf-8")
+          PY
+
+      - name: Airdrop with retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          for attempt in 1 2 3 4 5; do
+            echo "Airdrop attempt $attempt/5"
+            if solana airdrop 2 --url "$SOLANA_URL"; then
+              break
+            fi
+            sleep 10
+          done
+          solana balance --url "$SOLANA_URL"
+
+      - name: Build program
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          cd gadgetguard-solana
+          anchor build
+
+      - name: Deploy program
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          cd gadgetguard-solana
+          anchor deploy --provider.cluster devnet --provider.wallet "$ANCHOR_WALLET"
+
+      - name: Print Program ID and IDL path
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          PROGRAM_ID=$(solana-keygen pubkey "$PROGRAM_KEYPAIR_PATH")
+          echo "Deployed Program ID: $PROGRAM_ID"
+          echo "IDL path: gadgetguard-solana/target/idl/gadgetguard.json"
+
+      - name: Upload IDL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gadgetguard-idl
+          path: gadgetguard-solana/target/idl/gadgetguard.json

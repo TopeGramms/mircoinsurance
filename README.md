@@ -32,7 +32,11 @@ Happy path on Devnet with a custom 6-decimal SPL test mint:
 
 This path does not require local Solana CLI + Anchor install.
 
-### 1. Configure env
+### 1. Deploy program via GitHub Actions (no local toolchain)
+
+Follow `docs/CI_DEPLOY.md` to deploy the Anchor program to Devnet using GitHub Actions. Copy the deployed Program ID from the workflow logs.
+
+### 2. Configure env
 
 Copy `.env.example` to `.env` at repo root and set:
 - `RPC_URL` (Devnet)
@@ -40,11 +44,11 @@ Copy `.env.example` to `.env` at repo root and set:
 
 Copy `GadgetGuard-main/.env.example` to `GadgetGuard-main/.env` and set:
 - `VITE_RPC_URL`
-- `VITE_PROGRAM_ID` (Devnet deployed program)
+- `VITE_PROGRAM_ID` (Devnet deployed program from the workflow)
 - `VITE_POOL_ADDRESS` (optional; defaults to PDA seed `pool`)
 - `VITE_TEST_MINT_ADDRESS` (optional if `/public/mint.json` exists)
 
-### 2. Create test mint + fund wallet
+### 3. Create test mint + fund wallet
 
 From `scripts/`:
 
@@ -59,7 +63,7 @@ Notes:
 - `create-mint` writes `scripts/output/mint.json`.
 - Mint output is mirrored to `GadgetGuard-main/public/mint.json` for frontend auto-read.
 
-### 3. Run frontend
+### 4. Run frontend
 
 From `GadgetGuard-main/`:
 
