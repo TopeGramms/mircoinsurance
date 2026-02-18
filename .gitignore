@@ -32,6 +32,7 @@ coverage/
 
 # Solana / Anchor
 .anchor/
+**/Cargo.lock
 **/target/
 **/test-ledger/
 **/.solana/
