@@ -33,12 +33,12 @@ jobs:
           solana-cli-version: "1.18.18"
           node-version: "20.16.0"
 
-      - name: Pin Rust toolchain (nightly for edition2024 deps)
+      - name: Pin Rust toolchain for Solana 1.18
         shell: bash
         run: |
           set -euo pipefail
-          rustup toolchain install nightly --profile minimal
-          rustup default nightly
+          rustup toolchain install 1.77.2 --profile minimal
+          rustup default 1.77.2
           rustc --version
           cargo --version
 
@@ -109,14 +109,8 @@ jobs:
         run: |
           set -euo pipefail
           cd gadgetguard-solana
-          echo "Pre-build lockfile cleanup"
           rm -f Cargo.lock
-          find . -name Cargo.lock -print -delete || true
           test ! -f Cargo.lock
-          echo "Generating lockfile with pinned Cargo"
-          cargo generate-lockfile
-          ls -la Cargo.lock
-          ls -la
           anchor build
 
       - name: Deploy program
