@@ -33,12 +33,12 @@ jobs:
           solana-cli-version: "1.18.18"
           node-version: "20.16.0"
 
-      - name: Pin Rust toolchain for Solana 1.18
+      - name: Pin Rust toolchain (nightly for edition2024 deps)
         shell: bash
         run: |
           set -euo pipefail
-          rustup toolchain install 1.82.0 --profile minimal
-          rustup default 1.82.0
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
           rustc --version
           cargo --version
 
