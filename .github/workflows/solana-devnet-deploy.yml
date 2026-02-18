@@ -18,6 +18,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Remove incompatible Cargo.lock (if present)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f gadgetguard-solana/Cargo.lock
+          test ! -f gadgetguard-solana/Cargo.lock
+
       - name: Setup Anchor + Solana
         uses: metadaoproject/setup-anchor@v3.4
         with:
