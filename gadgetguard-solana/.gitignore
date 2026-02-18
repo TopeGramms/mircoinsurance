@@ -1,6 +1,8 @@
 # Anchor
 .anchor
 target/
+Cargo.lock
+**/Cargo.lock
 **/*.rs.bk
 node_modules
 test-ledger
