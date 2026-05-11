@@ -8,6 +8,12 @@ This repo is now Solana-first:
 - Utility scripts: `scripts/`
 - Legacy EVM history: `archive/evm/`
 
+## Status
+
+**Last Updated:** May 2026
+
+Active development on Solana Devnet MVP with CI/CD deployment, on-chain claim mechanics, and frontend integration. Ready for testing and feedback.
+
 ## What Works
 
 Happy path on Devnet with a custom 6-decimal SPL test mint:
